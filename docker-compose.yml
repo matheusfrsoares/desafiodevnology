@@ -1,0 +1,38 @@
+# =============================================================================
+# Docker Compose — Trainee DevOps API
+# Para rodar localmente: docker compose up --build
+# =============================================================================
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime       # Usa o stage final do multi-stage build
+    container_name: trainee-api
+    ports:
+      - "5000:5000"         # Mapeia porta do host → container
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=0
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    read_only: true          # Container em modo read-only (segurança extra)
+    tmpfs:
+      - /tmp                 # Permite escrita apenas em /tmp
+
+  # Serviço auxiliar para rodar os testes sem instalar dependências localmente
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder        # Usa o stage de build que tem todas as deps
+    container_name: trainee-api-test
+    command: ["sh", "-c", "pip install pytest --quiet && pytest test_app.py -v"]
+    profiles:
+      - test                 # Só sobe com: docker compose --profile test up
